@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery Component</title>
+    
+    <!-- 
+    ⚠️ หมายเหตุสำคัญ:
+    - ไฟล์นี้ต้องการ jQuery และ Bootstrap 3 ที่โหลดไว้แล้ว
+    - ไม่ต้องโหลด jQuery/Bootstrap ซ้ำ
+    - วางไฟล์นี้ในหน้าที่มี jQuery และ Bootstrap อยู่แล้ว
+    -->
+    
+    <!-- Google Fonts (Optional) -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Gallery Component CSS - START */
+        
+        /* Reset เฉพาะส่วน Gallery */
+        #photo-gallery-component,
+        #photo-gallery-component * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Main Container */
+        #photo-gallery-component {
+            font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            padding: 20px 0 !important;
+            min-height: auto !important;
+            width: 100% !important;
+            position: relative !important;
+            display: block !important;
+            overflow: hidden !important;
+        }
+        
+        #photo-gallery-component .pg-header {
+            text-align: center !important;
+            color: white !important;
+            margin: 0 auto 40px auto !important;
+            padding: 30px 15px !important;
+            max-width: 1200px !important;
+        }
+        
+        #photo-gallery-component .pg-header h1 {
+            font-family: inherit !important;
+            font-weight: 600 !important;
+            font-size: 48px !important;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;
+            margin: 0 0 10px 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+            color: white !important;
+            border: none !important;
+            background: none !important;
+        }
+        
+        #photo-gallery-component .pg-header p {
+            font-size: 18px !important;
+            opacity: 0.9 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            color: white !important;
+            background: none !important;
+        }
+        
+        #photo-gallery-component .pg-container {
+            background: white !important;
+            border-radius: 15px !important;
+            padding: 30px !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+        }
+        
+        #photo-gallery-component .pg-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            margin-left: -15px !important;
+            margin-right: -15px !important;
+        }
+        
+        #photo-gallery-component .pg-col {
+            position: relative !important;
+            min-height: 1px !important;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
+            margin-bottom: 30px !important;
+            flex: 0 0 auto !important;
+        }
+        
+        /* Responsive Columns */
+        @media (min-width: 1200px) {
+            #photo-gallery-component .pg-col {
+                width: 25% !important;
+            }
+        }
+        
+        @media (min-width: 992px) and (max-width: 1199px) {
+            #photo-gallery-component .pg-col {
+                width: 33.33333333% !important;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 991px) {
+            #photo-gallery-component .pg-col {
+                width: 50% !important;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            #photo-gallery-component .pg-col {
+                width: 50% !important;
+            }
+        }
+        
+        #photo-gallery-component .pg-item {
+            position: relative !important;
+            overflow: hidden !important;
+            border-radius: 10px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            display: block !important;
+            background: none !important;
+        }
+        
+        #photo-gallery-component .pg-item:hover {
+            transform: translateY(-5px) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+        }
+        
+        #photo-gallery-component .pg-item img {
+            width: 100% !important;
+            height: 250px !important;
+            object-fit: cover !important;
+            border-radius: 10px !important;
+            transition: all 0.3s ease !important;
+            display: block !important;
+            border: none !important;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+            background-size: 200% 100% !important;
+            max-width: 100% !important;
+        }
+        
+        #photo-gallery-component .pg-item:hover img {
+            transform: scale(1.05) !important;
+            filter: brightness(0.9) !important;
+        }
+        
+        /* Lightbox Modal - แยก layer ให้ชัดเจน */
+        
+        /* Override parent containers ที่อาจมี z-index ต่ำ */
+        .rcontainerns,
+        .nodelete,
+        .table-main,
+        .rcontainerns.nodelete.table-main {
+            z-index: auto !important;
+            position: relative !important;
+        }
+        
+        /* Modal Backdrop - อยู่หลังสุด */
+        .modal-backdrop {
+            z-index: 999990 !important;
+            position: fixed !important;
+        }
+        
+        #pgLightboxModal ~ .modal-backdrop,
+        #pgLightboxModal + .modal-backdrop,
+        .modal-backdrop.in {
+            z-index: 999990 !important;
+            position: fixed !important;
+        }
+        
+        /* Modal Container - ใช้ position fixed เพื่อแยก stacking context */
+        .pg-lightbox-modal.modal,
+        #pgLightboxModal.modal {
+            z-index: 999995 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .pg-lightbox-modal .modal-dialog {
+            width: 90% !important;
+            max-width: 1200px !important;
+            margin: 30px auto !important;
+            z-index: 1000000 !important;
+            position: relative !important;
+            transform: translateZ(0) !important;
+        }
+        
+        .pg-lightbox-modal .modal-content {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: 1000001 !important;
+            position: relative !important;
+        }
+        
+        .pg-lightbox-modal .modal-header {
+            border: none !important;
+            position: absolute !important;
+            top: 0 !important;
+            right: 0 !important;
+            z-index: 1000003 !important;
+            background: transparent !important;
+            padding: 10px !important;
+        }
+        
+        .pg-lightbox-modal .modal-header .close {
+            color: white !important;
+            font-size: 40px !important;
+            opacity: 0.8 !important;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5) !important;
+            transition: all 0.3s ease !important;
+            background: none !important;
+            border: none !important;
+            font-weight: normal !important;
+            position: relative !important;
+            z-index: 1000004 !important;
+        }
+        
+        .pg-lightbox-modal .modal-header .close:hover {
+            opacity: 1 !important;
+            transform: scale(1.2) !important;
+        }
+        
+        .pg-lightbox-modal .modal-body {
+            padding: 0 !important;
+            position: relative !important;
+            text-align: center !important;
+            z-index: 1000002 !important;
+        }
+        
+        .pg-lightbox-modal .modal-body img {
+            max-width: 100% !important;
+            max-height: 85vh !important;
+            width: auto !important;
+            height: auto !important;
+            border-radius: 5px !important;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5) !important;
+            position: relative !important;
+            z-index: 1000002 !important;
+        }
+        
+        /* Navigation Arrows */
+        .pg-lightbox-modal .pg-nav {
+            position: absolute !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            background: rgba(0,0,0,0.5) !important;
+            color: white !important;
+            border: none !important;
+            font-size: 40px !important;
+            padding: 20px 25px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            border-radius: 5px !important;
+            z-index: 1000003 !important;
+            outline: none !important;
+            line-height: 1 !important;
+        }
+        
+        .pg-lightbox-modal .pg-nav:hover {
+            background: rgba(0,0,0,0.8) !important;
+            transform: translateY(-50%) scale(1.1) !important;
+        }
+        
+        .pg-lightbox-modal .pg-nav:active {
+            transform: translateY(-50%) scale(0.95) !important;
+        }
+        
+        .pg-lightbox-modal .pg-nav.pg-prev {
+            left: 20px !important;
+        }
+        
+        .pg-lightbox-modal .pg-nav.pg-next {
+            right: 20px !important;
+        }
+        
+        /* Image Counter */
+        .pg-lightbox-modal .pg-counter {
+            position: absolute !important;
+            bottom: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: rgba(0,0,0,0.7) !important;
+            color: white !important;
+            padding: 10px 20px !important;
+            border-radius: 25px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            z-index: 1000003 !important;
+        }
+        
+        /* Animations */
+        @keyframes pgFadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        #photo-gallery-component .pg-item {
+            animation: pgFadeInUp 0.6s ease-out !important;
+            animation-fill-mode: both !important;
+        }
+        
+        #photo-gallery-component .pg-item:nth-child(1) { animation-delay: 0.1s !important; }
+        #photo-gallery-component .pg-item:nth-child(2) { animation-delay: 0.15s !important; }
+        #photo-gallery-component .pg-item:nth-child(3) { animation-delay: 0.2s !important; }
+        #photo-gallery-component .pg-item:nth-child(4) { animation-delay: 0.25s !important; }
+        #photo-gallery-component .pg-item:nth-child(5) { animation-delay: 0.3s !important; }
+        #photo-gallery-component .pg-item:nth-child(6) { animation-delay: 0.35s !important; }
+        #photo-gallery-component .pg-item:nth-child(7) { animation-delay: 0.4s !important; }
+        #photo-gallery-component .pg-item:nth-child(8) { animation-delay: 0.45s !important; }
+        #photo-gallery-component .pg-item:nth-child(9) { animation-delay: 0.5s !important; }
+        #photo-gallery-component .pg-item:nth-child(10) { animation-delay: 0.55s !important; }
+        #photo-gallery-component .pg-item:nth-child(11) { animation-delay: 0.6s !important; }
+        #photo-gallery-component .pg-item:nth-child(12) { animation-delay: 0.65s !important; }
+        
+        @keyframes pgFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .pg-lightbox-modal .pg-fade-in {
+            animation: pgFadeIn 0.3s ease-in !important;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            #photo-gallery-component .pg-header h1 {
+                font-size: 32px !important;
+            }
+            
+            #photo-gallery-component .pg-item img {
+                height: 200px !important;
+            }
+            
+            #photo-gallery-component .pg-container {
+                padding: 20px !important;
+            }
+            
+            .pg-lightbox-modal .pg-nav {
+                font-size: 30px !important;
+                padding: 15px 20px !important;
+            }
+            
+            .pg-lightbox-modal .pg-nav.pg-prev {
+                left: 10px !important;
+            }
+            
+            .pg-lightbox-modal .pg-nav.pg-next {
+                right: 10px !important;
+            }
+            
+            .pg-lightbox-modal .modal-dialog {
+                width: calc(100% - 20px) !important;
+                max-width: calc(100% - 20px) !important;
+                margin: 10px !important;
+            }
+        }
+        
+        /* Clearfix */
+        #photo-gallery-component .pg-row::after {
+            content: "" !important;
+            display: table !important;
+            clear: both !important;
+        }
+        
+        /* ป้องกัน Header และ Elements อื่นบัง Modal */
+        body.modal-open [id*="top-nav"],
+        body.modal-open [id^="top-nav-head"],
+        body.modal-open header,
+        body.modal-open nav {
+            z-index: 999 !important;
+        }
+        
+        /* บังคับให้ parent containers ไม่กระทบ modal */
+        body.modal-open .rcontainerns,
+        body.modal-open .nodelete,
+        body.modal-open .table-main {
+            z-index: auto !important;
+        }
+        
+        /* Force Modal Layers เมื่อเปิด */
+        body.modal-open .pg-lightbox-modal,
+        body.modal-open #pgLightboxModal {
+            z-index: 999995 !important;
+            position: fixed !important;
+        }
+        
+        body.modal-open .modal-backdrop {
+            z-index: 999990 !important;
+            position: fixed !important;
+        }
+        
+        body.modal-open .pg-lightbox-modal .modal-dialog,
+        body.modal-open #pgLightboxModal .modal-dialog {
+            z-index: 1000000 !important;
+            position: relative !important;
+            transform: translateZ(0) !important;
+        }
+        
+        /* Gallery Component CSS - END */
+    </style>
+</head>
+<body>
+
+    <!-- ========================================
+         Photo Gallery Component
+         ใส่ส่วนนี้ในหน้าเว็บของคุณ
+         ======================================== -->
+    
+    <div id="photo-gallery-component">
+        
+        <div class="pg-header">
+            <h1>📷 Photo Gallery</h1>
+            <p>คลังรูปภาพสวยงามของเรา</p>
+        </div>
+
+        <div class="pg-container">
+            <div class="pg-row">
+                
+                <div class="pg-col">
+                    <div class="pg-item" data-index="0">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=1200&fit=crop"
+                             alt="Image 1">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="1">
+                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=1200&h=1200&fit=crop"
+                             alt="Image 2">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="2">
+                        <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=1200&fit=crop"
+                             alt="Image 3">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="3">
+                        <img src="https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=1200&h=1200&fit=crop"
+                             alt="Image 4">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="4">
+                        <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&h=1200&fit=crop"
+                             alt="Image 5">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="5">
+                        <img src="https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=1200&h=1200&fit=crop"
+                             alt="Image 6">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="6">
+                        <img src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&h=1200&fit=crop"
+                             alt="Image 7">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="7">
+                        <img src="https://images.unsplash.com/photo-1511818966892-d7d671e672a2?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1511818966892-d7d671e672a2?w=1200&h=1200&fit=crop"
+                             alt="Image 8">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="8">
+                        <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&h=1200&fit=crop"
+                             alt="Image 9">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="9">
+                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200&h=1200&fit=crop"
+                             alt="Image 10">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="10">
+                        <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&h=1200&fit=crop"
+                             alt="Image 11">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="11">
+                        <img src="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1200&h=1200&fit=crop"
+                             alt="Image 12">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="12">
+                        <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&h=1200&fit=crop"
+                             alt="Image 13">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="13">
+                        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=1200&fit=crop"
+                             alt="Image 14">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="14">
+                        <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=1200&fit=crop"
+                             alt="Image 15">
+                    </div>
+                </div>
+
+                <div class="pg-col">
+                    <div class="pg-item" data-index="15">
+                        <img src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=500&h=500&fit=crop" 
+                             data-large="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1200&h=1200&fit=crop"
+                             alt="Image 16">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Modal -->
+    <div class="modal fade pg-lightbox-modal" id="pgLightboxModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <button class="pg-nav pg-prev" id="pgPrevBtn">
+                        <span>‹</span>
+                    </button>
+                    <img src="" id="pgLightboxImage" alt="Lightbox">
+                    <button class="pg-nav pg-next" id="pgNextBtn">
+                        <span>›</span>
+                    </button>
+                    <div class="pg-counter">
+                        <span id="pgCurrentIndex">1</span> / <span id="pgTotalImages">16</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 
+    ⚠️ สำคัญ: ใส่ script นี้หลัง jQuery และ Bootstrap
+    วางก่อน </body> tag 
+    -->
+    <script>
+        // Photo Gallery Script - ใช้ jQuery ที่มีอยู่แล้ว
+        (function($) {
+            'use strict';
+            
+            // ตรวจสอบว่ามี jQuery หรือไม่
+            if (typeof $ === 'undefined') {
+                console.error('Photo Gallery: jQuery is required!');
+                return;
+            }
+            
+            var PhotoGallery = {
+                currentIndex: 0,
+                totalImages: 0,
+                
+                init: function() {
+                    // ย้าย Modal ออกมาวางที่ body เพื่อหลีกเลี่ยง z-index inheritance
+                    var $modal = $('#pgLightboxModal');
+                    if ($modal.length && $modal.parent()[0].tagName !== 'BODY') {
+                        $modal.detach().appendTo('body');
+                        console.log('Photo Gallery: Modal moved to body to escape parent z-index');
+                    }
+                    
+                    this.totalImages = $('#photo-gallery-component .pg-item').length;
+                    $('#pgTotalImages').text(this.totalImages);
+                    this.bindEvents();
+                },
+                
+                bindEvents: function() {
+                    var self = this;
+                    
+                    // Click on gallery item
+                    $('#photo-gallery-component .pg-item').on('click', function() {
+                        self.currentIndex = parseInt($(this).data('index'));
+                        self.showImage(self.currentIndex);
+                        $('#pgLightboxModal').modal('show');
+                    });
+                    
+                    // Previous button
+                    $('#pgPrevBtn').on('click', function(e) {
+                        e.stopPropagation();
+                        self.currentIndex = (self.currentIndex - 1 + self.totalImages) % self.totalImages;
+                        self.showImage(self.currentIndex);
+                    });
+                    
+                    // Next button
+                    $('#pgNextBtn').on('click', function(e) {
+                        e.stopPropagation();
+                        self.currentIndex = (self.currentIndex + 1) % self.totalImages;
+                        self.showImage(self.currentIndex);
+                    });
+                    
+                    // Keyboard navigation
+                    $(document).on('keydown.photogallery', function(e) {
+                        if ($('#pgLightboxModal').hasClass('in')) {
+                            if (e.keyCode === 37) { // Left
+                                $('#pgPrevBtn').trigger('click');
+                            } else if (e.keyCode === 39) { // Right
+                                $('#pgNextBtn').trigger('click');
+                            } else if (e.keyCode === 27) { // ESC
+                                $('#pgLightboxModal').modal('hide');
+                            }
+                        }
+                    });
+                    
+                    // Prevent modal close on image click
+                    $('#pgLightboxImage').on('click', function(e) {
+                        e.stopPropagation();
+                    });
+                    
+                    // Cleanup on modal hide
+                    $('#pgLightboxModal').on('hidden.bs.modal', function() {
+                        $('#pgLightboxImage').attr('src', '');
+                    });
+                    
+                    // Image loaded
+                    $('#photo-gallery-component .pg-item img').on('load', function() {
+                        $(this).css('background', 'none');
+                    });
+                },
+                
+                showImage: function(index) {
+                    var $item = $('#photo-gallery-component .pg-item[data-index="' + index + '"]');
+                    var largeSrc = $item.find('img').data('large');
+                    
+                    $('#pgLightboxImage').removeClass('pg-fade-in');
+                    setTimeout(function() {
+                        $('#pgLightboxImage').attr('src', largeSrc).addClass('pg-fade-in');
+                    }, 50);
+                    
+                    $('#pgCurrentIndex').text(index + 1);
+                }
+            };
+            
+            // Initialize when DOM is ready
+            $(document).ready(function() {
+                PhotoGallery.init();
+            });
+            
+        })(jQuery);
+    </script>
+
+</body>
+</html>
