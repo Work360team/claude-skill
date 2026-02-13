@@ -13,14 +13,47 @@ from pathlib import Path
 from typing import List, Tuple
 
 def slugify(text: str) -> str:
-    """Convert text to URL-friendly slug"""
-    slug = re.sub(r'[^\w\s-]', '', text.lower())
+    """
+    Convert text to URL-friendly slug
+    Only use English characters and numbers
+    For non-English text, this will return empty string
+    """
+    # Remove all non-ASCII characters first
+    slug = re.sub(r'[^\x00-\x7F]+', '', text)
+    # Convert to lowercase and replace spaces with hyphens
+    slug = re.sub(r'[^\w\s-]', '', slug.lower())
     slug = re.sub(r'[-\s]+', '-', slug)
     return slug.strip('-')
 
-def extract_headings(content: str) -> List[Tuple[int, str, str]]:
+def build_heading_map(content: str) -> dict:
     """
-    Extract headings from markdown content
+    Build a map of heading text to slug IDs
+    This ensures TOC and HTML content use the same IDs
+    Returns dict: {heading_text: slug_id}
+    """
+    heading_map = {}
+    pattern = r'^(#{2,3})\s+(.+)$'
+    counter = 0
+    
+    for match in re.finditer(pattern, content, re.MULTILINE):
+        text = match.group(2).strip()
+        
+        # Try to create slug from text
+        slug = slugify(text)
+        
+        # If slug is empty or too short (non-English text), use numbered slug
+        if not slug or len(slug) < 3:
+            counter += 1
+            slug = f'section-{counter}'
+        
+        # Store in map (text -> slug)
+        heading_map[text] = slug
+    
+    return heading_map
+
+def extract_headings(content: str, heading_map: dict) -> List[Tuple[int, str, str]]:
+    """
+    Extract headings from markdown content using pre-built heading map
     Returns list of tuples: (level, text, slug)
     """
     headings = []
@@ -29,7 +62,7 @@ def extract_headings(content: str) -> List[Tuple[int, str, str]]:
     for match in re.finditer(pattern, content, re.MULTILINE):
         level = len(match.group(1))
         text = match.group(2).strip()
-        slug = slugify(text)
+        slug = heading_map.get(text, f'section-unknown')
         headings.append((level, text, slug))
     
     return headings
@@ -81,10 +114,62 @@ def escape_html(text: str) -> str:
         .replace('"', '&quot;')
         .replace("'", '&#39;'))
 
-def markdown_to_html(md_content: str) -> str:
+def markdown_table_to_html(table_text: str) -> str:
+    """
+    Convert Markdown table to HTML table with modern styling
+    
+    Markdown format:
+    | Header 1 | Header 2 | Header 3 |
+    |----------|----------|----------|
+    | Cell 1   | Cell 2   | Cell 3   |
+    | Cell 4   | Cell 5   | Cell 6   |
+    """
+    lines = [line.strip() for line in table_text.strip().split('\n') if line.strip()]
+    
+    if len(lines) < 3:  # Need at least header, separator, and one data row
+        return table_text
+    
+    # Parse header
+    header_line = lines[0]
+    if not header_line.startswith('|') or not header_line.endswith('|'):
+        return table_text
+    
+    headers = [cell.strip() for cell in header_line.split('|')[1:-1]]
+    
+    # Skip separator line (lines[1])
+    
+    # Parse data rows
+    data_rows = []
+    for line in lines[2:]:
+        if line.startswith('|') and line.endswith('|'):
+            cells = [cell.strip() for cell in line.split('|')[1:-1]]
+            data_rows.append(cells)
+    
+    # Generate HTML table
+    html = '<div class="table-wrapper">\n<table>\n<thead>\n<tr>\n'
+    
+    # Add headers
+    for header in headers:
+        html += f'<th>{header}</th>\n'
+    
+    html += '</tr>\n</thead>\n<tbody>\n'
+    
+    # Add data rows
+    for row in data_rows:
+        html += '<tr>\n'
+        for cell in row:
+            html += f'<td>{cell}</td>\n'
+        html += '</tr>\n'
+    
+    html += '</tbody>\n</table>\n</div>'
+    
+    return html
+
+def markdown_to_html(md_content: str, heading_map: dict) -> str:
     """
     Convert markdown content to HTML with proper formatting
     --- becomes a section divider (not shown in HTML, just splits content)
+    heading_map: pre-built map of heading text to slug IDs
     """
     # Split by --- (horizontal rule / section divider)
     sections = re.split(r'^---+$', md_content, flags=re.MULTILINE)
@@ -129,10 +214,38 @@ def markdown_to_html(md_content: str) -> str:
         
         html = re.sub(r'`([^`]+)`', save_inline_code, html)
         
+        # Step 2.5: Process tables (before headers and formatting)
+        tables = {}
+        table_counter = [0]
+        
+        def save_table(match):
+            table_text = match.group(0)
+            table_html = markdown_table_to_html(table_text)
+            placeholder = f'XYZTABLEREPLACE{table_counter[0]}XYZ'
+            tables[placeholder] = table_html
+            table_counter[0] += 1
+            return placeholder
+        
+        # Match markdown tables (must start with |, have separator line, and at least one data row)
+        table_pattern = r'(?:^\|.+\|$\n)+^\|[\s:|-]+\|$\n(?:^\|.+\|$\n?)+'
+        html = re.sub(table_pattern, save_table, html, flags=re.MULTILINE)
+        
         # Step 3: Headers with IDs for anchor links
+        # Use pre-built heading_map for consistent IDs
+        
+        def create_h2_with_id(match):
+            text = match.group(1)
+            slug = heading_map.get(text, f'section-{text[:10]}')
+            return f'<h2 id="{slug}">{text}</h2>'
+        
+        def create_h3_with_id(match):
+            text = match.group(1)
+            slug = heading_map.get(text, f'section-{text[:10]}')
+            return f'<h3 id="{slug}">{text}</h3>'
+        
         html = re.sub(r'^#### (.+)$', lambda m: f'<h4>{m.group(1)}</h4>', html, flags=re.MULTILINE)
-        html = re.sub(r'^### (.+)$', lambda m: f'<h3 id="{slugify(m.group(1))}">{m.group(1)}</h3>', html, flags=re.MULTILINE)
-        html = re.sub(r'^## (.+)$', lambda m: f'<h2 id="{slugify(m.group(1))}">{m.group(1)}</h2>', html, flags=re.MULTILINE)
+        html = re.sub(r'^### (.+)$', create_h3_with_id, html, flags=re.MULTILINE)
+        html = re.sub(r'^## (.+)$', create_h2_with_id, html, flags=re.MULTILINE)
         
         # Step 4: Bold (must come before italic)
         html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
@@ -199,7 +312,9 @@ def markdown_to_html(md_content: str) -> str:
                     for tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 
                                'blockquote', 'pre', 'div', 'img', 'p']
                 )
-                is_placeholder = stripped.startswith('XYZCODEBLOCKREPLACE') or stripped.startswith('XYZINLINECODEREPLACE')
+                is_placeholder = (stripped.startswith('XYZCODEBLOCKREPLACE') or 
+                                stripped.startswith('XYZINLINECODEREPLACE') or
+                                stripped.startswith('XYZTABLEREPLACE'))
                 
                 if not is_tag and not is_placeholder and not stripped.endswith('>'):
                     result.append(f'<p>{stripped}</p>')
@@ -210,11 +325,15 @@ def markdown_to_html(md_content: str) -> str:
         
         html = '\n'.join(result)
         
-        # Step 13: Restore inline codes first (they might be inside other elements)
+        # Step 13: Restore tables first (before inline codes)
+        for placeholder, table_html in tables.items():
+            html = html.replace(placeholder, table_html)
+        
+        # Step 14: Restore inline codes (they might be inside other elements)
         for placeholder, code_html in inline_codes.items():
             html = html.replace(placeholder, code_html)
         
-        # Step 14: Restore code blocks last (they are block-level elements)
+        # Step 15: Restore code blocks last (they are block-level elements)
         for placeholder, code_html in code_blocks.items():
             html = html.replace(placeholder, code_html)
         
@@ -255,15 +374,18 @@ def create_article_html(
     with open(template_path, 'r', encoding='utf-8') as f:
         template = f.read()
     
-    # Extract headings before conversion
-    headings = extract_headings(content)
+    # Build heading map first (ensures consistent IDs)
+    heading_map = build_heading_map(content)
+    
+    # Extract headings using the map
+    headings = extract_headings(content, heading_map)
     
     # Auto-generate subtitle if not provided
     if not subtitle:
         subtitle = generate_subtitle(content)
     
-    # Convert markdown to HTML
-    html_content = markdown_to_html(content)
+    # Convert markdown to HTML using the same map
+    html_content = markdown_to_html(content, heading_map)
     
     # Generate TOC
     toc_html = generate_toc_html(headings)
