@@ -786,18 +786,6 @@
             }
         }
 
-        /* Scroll Animations */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .fade-in.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
         /* Keyframes */
         @keyframes fadeInUp {
             from {
@@ -974,7 +962,7 @@
         </div>
 
         <!-- Table of Contents (Collapsible) -->
-        <div class="toc-wrapper fade-in" id="toc-wrapper">
+        <div class="toc-wrapper" id="toc-wrapper">
             <div class="toc-header" onclick="toggleTOC()">
                 <div class="toc-title">
                     สารบัญ
@@ -1068,33 +1056,6 @@
                 top: 0,
                 behavior: 'smooth'
             });
-        });
-
-        // Fade-in Animation on Scroll - Enhanced
-        const observerOptions = {
-            threshold: 0.15,
-            rootMargin: '0px 0px -80px 0px'
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry, index) => {
-                if (entry.isIntersecting) {
-                    setTimeout(() => {
-                        entry.target.classList.add('visible');
-                    }, index * 100); // Stagger animation
-                }
-            });
-        }, observerOptions);
-
-        // Observe all fade-in elements
-        document.querySelectorAll('.fade-in').forEach(el => {
-            observer.observe(el);
-        });
-
-        // Observe content elements within boxes
-        document.querySelectorAll('.content-box h2, .content-box h3, .content-box p, .content-box ul, .content-box ol, .content-box blockquote, .content-box pre').forEach(el => {
-            el.classList.add('fade-in');
-            observer.observe(el);
         });
 
         // Parallax effect for hero section (subtle)
